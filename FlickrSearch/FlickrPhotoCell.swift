@@ -16,6 +16,7 @@ class FlickrPhotoCell: UICollectionViewCell {
     // MARK: - Properties
     override var isSelected: Bool {
         didSet {
+            print(isSelected)
             imageView.layer.borderWidth = isSelected ? 10 : 0
         }
     }
@@ -23,7 +24,7 @@ class FlickrPhotoCell: UICollectionViewCell {
     // MARK: - View Life Cycle
     override func awakeFromNib() {
         super.awakeFromNib()
-        imageView.layer.borderColor = UIColor.lightGray.cgColor
+        imageView.layer.borderColor = themeColor.cgColor
         isSelected = false
     }
 }

@@ -20,6 +20,29 @@ final class FlickrPhotosViewController: UICollectionViewController {
     
     fileprivate let itemsPerRow: CGFloat = 3
     
+    fileprivate var selectedPhotos = [FlickrPhoto]()
+    fileprivate let shareTextLabel = UILabel()
+    
+    @IBAction func share(_ sender: UIBarButtonItem) {
+        guard !searches.isEmpty else {
+            return
+        }
+        
+        guard !selectedPhotos.isEmpty else {
+            sharing = !sharing
+            return
+        }
+        
+        guard sharing else {
+            return
+        }
+        
+        //TODO actually share photos!
+//        var imageArray = [UIImage]()
+//        for selectedPhoto in selectedPhotos {
+//            if let thumbnail !=
+//        }
+    }
     //1
     var largePhotoIndexPath: IndexPath? {
         didSet {
@@ -45,36 +68,49 @@ final class FlickrPhotosViewController: UICollectionViewController {
             }
         }
     }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Register cell classes
-        // self.collectionView!.register(FlickrPhotoCell.self, forCellWithReuseIdentifier: reuseIdentifier)
-        // collectionView!.register(FlickrPhotoHeaderView.self, forSupplementaryViewOfKind: UICollectionElementKindSectionHeader, withReuseIdentifier: "FlickrPhotoHeaderView")
-
-        // Do any additional setup after loading the view.
+    
+    var sharing: Bool = false {
+        didSet {
+            collectionView?.allowsMultipleSelection = sharing
+            collectionView?.selectItem(at: nil, animated: true, scrollPosition: UICollectionViewScrollPosition())
+            selectedPhotos.removeAll(keepingCapacity: false)
+            
+            guard let shareButton = self.navigationItem.rightBarButtonItems?.first else {
+                return
+            }
+            
+            guard sharing else {
+                navigationItem.setRightBarButtonItems([shareButton], animated: true)
+                return
+            }
+            
+            if let _ = largePhotoIndexPath  {
+                largePhotoIndexPath = nil
+            }
+            
+            updateSharedPhotoCount()
+            let sharingDetailItem = UIBarButtonItem(customView: shareTextLabel)
+            navigationItem.setRightBarButtonItems([shareButton,sharingDetailItem], animated: true)
+        }
     }
+}
 
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+// MARK: - Private
+private extension FlickrPhotosViewController {
+    func photoForIndexPath(indexPath: IndexPath) -> FlickrPhoto {
+        return searches[indexPath.section].searchResults[indexPath.row]
     }
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using [segue destinationViewController].
-        // Pass the selected object to the new view controller.
+    
+    func updateSharedPhotoCount() {
+        shareTextLabel.textColor = themeColor
+        shareTextLabel.text = "\(selectedPhotos.count) photos selected"
+        //sizeToFit()은 글씨의 크기에 따라서 Label의 크기를 조정
+        shareTextLabel.sizeToFit()
     }
-    */
+}
 
-    // MARK: UICollectionViewDataSource
+// MARK: UICollectionViewDataSource
+extension FlickrPhotosViewController {
     override func numberOfSections(in collectionView: UICollectionView) -> Int {
         
         return searches.count
@@ -129,7 +165,7 @@ final class FlickrPhotosViewController: UICollectionViewController {
         case UICollectionElementKindSectionHeader:
             //3
             let headerView = collectionView.dequeueReusableSupplementaryView(ofKind: kind,
-                    withReuseIdentifier: "FlickrPhotoHeaderView", for: indexPath) as! FlickrPhotoHeaderView
+                                                                             withReuseIdentifier: "FlickrPhotoHeaderView", for: indexPath) as! FlickrPhotoHeaderView
             
             headerView.label.text = searches[indexPath.section].searchTerm
             
@@ -139,44 +175,66 @@ final class FlickrPhotosViewController: UICollectionViewController {
             assert(false, "Unexpected element kind")
         }
     }
-
-
-
-
-
-    // MARK: UICollectionViewDelegate
-
-    /*
-    // Uncomment this method to specify if the specified item should be highlighted during tracking
-    override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
-        return true
-    }
-    */
-
-
-    // Uncomment this method to specify if the specified item should be selected
-    override func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
-        largePhotoIndexPath = largePhotoIndexPath == indexPath ? nil : indexPath
-        return false
-    }
-
-
-    /*
-    // Uncomment these methods to specify if an action menu should be displayed for the specified item, and react to actions performed on the item
-    override func collectionView(_ collectionView: UICollectionView, shouldShowMenuForItemAt indexPath: IndexPath) -> Bool {
-        return false
-    }
-
-    override func collectionView(_ collectionView: UICollectionView, canPerformAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) -> Bool {
-        return false
-    }
-
-    override func collectionView(_ collectionView: UICollectionView, performAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) {
-    
-    }
-    */
 }
 
+// MARK: UICollectionViewDelegate
+extension FlickrPhotosViewController {
+    /*
+     // Uncomment this method to specify if the specified item should be highlighted during tracking
+     override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
+     return true
+     }
+     */
+    
+    
+    // Uncomment this method to specify if the specified item should be selected
+    override func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
+        guard !sharing else {
+            return true
+        }
+        
+        largePhotoIndexPath = largePhotoIndexPath == indexPath ? nil : indexPath
+        return true
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard sharing else {
+            return
+        }
+        
+        let photo = photoForIndexPath(indexPath: indexPath)
+        selectedPhotos.append(photo)
+        updateSharedPhotoCount()
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
+        guard sharing else {
+            return
+        }
+        
+        let photo = photoForIndexPath(indexPath: indexPath)
+        
+        if let index = selectedPhotos.index(of: photo) {
+            selectedPhotos.remove(at: index)
+            updateSharedPhotoCount()
+        }
+    }
+    
+    /*
+     // Uncomment these methods to specify if an action menu should be displayed for the specified item, and react to actions performed on the item
+     override func collectionView(_ collectionView: UICollectionView, shouldShowMenuForItemAt indexPath: IndexPath) -> Bool {
+     return false
+     }
+     
+     override func collectionView(_ collectionView: UICollectionView, canPerformAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) -> Bool {
+     return false
+     }
+     
+     override func collectionView(_ collectionView: UICollectionView, performAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) {
+     
+     }
+     */
+}
 
 // MARK: UICollectionViewFlowLayoutDelegate
 extension FlickrPhotosViewController : UICollectionViewDelegateFlowLayout {
@@ -216,13 +274,6 @@ extension FlickrPhotosViewController : UICollectionViewDelegateFlowLayout {
                         layout collectionViewLayout: UICollectionViewLayout,
                         minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         return sectionInsets.left
-    }
-}
-
-// MARK: - Private
-private extension FlickrPhotosViewController {
-    func photoForIndexPath(indexPath: IndexPath) -> FlickrPhoto {
-        return searches[(indexPath as NSIndexPath).section].searchResults[(indexPath as IndexPath).row]
     }
 }
 
